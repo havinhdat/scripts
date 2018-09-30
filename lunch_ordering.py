@@ -18,10 +18,10 @@ class Merchant:
 
 class Env:
     MERCHANTS = {
-        'bento': Merchant('https://www.now.vn/ho-chi-minh/com-trua-bento-nguyen-huu-tho-now-station-2/', 22220,
-                          ':bento:'),
-        'test_phuclong': Merchant('https://www.now.vn/ho-chi-minh/phuc-long-coffee-tea-house-van-hanh-mall/', 31373,
-                                  ':starbucks:'),
+        'bento': Merchant('https://www.now.vn/ho-chi-minh/com-trua-bento-nguyen-huu-tho-now-station-2/', 22220, ':bento:'),
+        'test_phuclong': Merchant('https://www.now.vn/ho-chi-minh/phuc-long-coffee-tea-house-van-hanh-mall/', 31373, ':starbucks:'),
+        'chicken_rice': Merchant('https://www.now.vn/ho-chi-minh/com-ga-singapore-99/', 40838, ':chicken:'),
+        'tam_ky': Merchant('https://www.now.vn/ho-chi-minh/quan-an-tam-ky-nguyen-thi-thap/', 10312, ':rice:'),
     }
     merchant = None
     teamx_id = None
@@ -230,10 +230,35 @@ class NowClient:
         return cart_items
 
 
+def pre_check_run_job():
+    today = date.today()
+    if today.weekday() == 5 or today.weekday() == 6:
+        return False
+
+    date_fmt = '%Y-%m-%d'
+
+    # Exclude specific date
+    for date_str in config.EXCLUDE_DATES:
+        date_check = datetime.strptime(date_str, date_fmt).date()
+        if today == date_check:
+            return False
+
+    # Exclude by range
+    for from_str, to_str in config.EXCLUDE_PERIODS:
+        from_date = datetime.strptime(from_str, date_fmt).date()
+        to_date = datetime.strptime(to_str, date_fmt).date()
+
+        if from_date <= today <= to_date:
+            return False
+
+    return True
+
+
 def run_job_at_time(hour, minute, job, *args, **kwargs):
+    runnable = pre_check_run_job()
     cur_hour = datetime.now().hour
     cur_min = datetime.now().minute
-    if cur_hour == hour and cur_min == minute:
+    if cur_hour == hour and cur_min == minute and runnable:
         return job(*args, **kwargs)
     else:
         return None
@@ -255,7 +280,8 @@ def remind_lunch_order_job(last_remind=False):
     today = date.today()
 
     message = """
-Hi guys :robot_face:
+Hi guys :robot_face: :here1::here2:
+
 {last_remind_option} Make sure to place your lunch order for `{order_date}` before `11:00am`
 {icon} {order_link}
     """.format(
@@ -279,6 +305,7 @@ def announce_next_lunch_order_job():
 
     message = """
 Hi guys :robot_face:
+
 New lunch order link for `{order_date}` is available,
 {icon} {order_link}
 
@@ -309,6 +336,7 @@ def notify_current_cart_job():
         messages.append(u"- *{}*:\n{}".format(owner_name, "\n".join(map(unicode, items))))
 
     sc.send_notify(u"""
+Please order if you haven't, i'll wait for 5 more mins
 :blank:
 :blank::blank::blank:{} Current Lunch Cart  <!here>
 :blank:
@@ -337,10 +365,9 @@ if __name__ == '__main__':
 
     slack_client = MySlackClient()
     try:
-        run_job_at_time(10, 0, remind_lunch_order_job)
-        run_job_at_time(10, 30, remind_lunch_order_job, last_remind=True)
-        run_job_at_time(10, 45, notify_current_cart_job)
-        run_job_at_time(13, 0, announce_next_lunch_order_job)
+        run_job_at_time(11, 0, remind_lunch_order_job, last_remind=True)
+        run_job_at_time(11, 15, notify_current_cart_job)
+        run_job_at_time(13, 50, announce_next_lunch_order_job)
 
         if args.func:
             func = args.func
