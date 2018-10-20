@@ -8,6 +8,7 @@ Control lunch ordering behaviour in VNRnD Teamx
 
 ## Installation:
 `pip install -r < requirements.txt`
+
 Install `Chrome Selenium WebDriver`for your OS here http://chromedriver.chromium.org/downloads
 
 
