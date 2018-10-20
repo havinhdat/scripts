@@ -91,10 +91,10 @@ class NowAutomation:
         search_btn = self.browser.find_element_by_css_selector(constants.NOW_HISTORY_SEARCH_BTN_SELECTOR)
 
         # select from-date and to-date is today
-        # from_date_input.click()
-        # time.sleep(0.5)
-        # self.browser.find_element_by_css_selector(constants.NOW_HISTORY_FROM_DATE_TODAY_VALUE_SELECTOR).click()
-        # time.sleep(0.5)
+        from_date_input.click()
+        time.sleep(0.5)
+        self.browser.find_element_by_css_selector(constants.NOW_HISTORY_FROM_DATE_TODAY_VALUE_SELECTOR).click()
+        time.sleep(0.5)
 
         # search for today bill
         search_btn.click()
