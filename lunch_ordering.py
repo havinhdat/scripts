@@ -1,3 +1,6 @@
+# coding=utf-8
+import time
+
 import requests
 import base64
 import re
@@ -7,6 +10,8 @@ import config
 from datetime import date, timedelta, datetime
 from slackclient import SlackClient
 from argparse import ArgumentParser
+from foody_automation import NowAutomation
+from common import beautify_cart_items_text
 
 
 class Merchant:
@@ -18,10 +23,14 @@ class Merchant:
 
 class Env:
     MERCHANTS = {
-        'bento': Merchant('https://www.now.vn/ho-chi-minh/com-trua-bento-nguyen-huu-tho-now-station-2/', 22220, ':bento:'),
-        'test_phuclong': Merchant('https://www.now.vn/ho-chi-minh/phuc-long-coffee-tea-house-van-hanh-mall/', 31373, ':starbucks:'),
-        'chicken_rice': Merchant('https://www.now.vn/ho-chi-minh/com-ga-singapore-99/', 40838, ':chicken:'),
-        'tam_ky': Merchant('https://www.now.vn/ho-chi-minh/quan-an-tam-ky-nguyen-thi-thap/', 10312, ':rice:'),
+        'bento': Merchant('https://www.now.vn/ho-chi-minh/com-trua-bento-nguyen-huu-tho-now-station-2/', 22220,
+                          ':bento:'),
+        'bento2': Merchant('https://www.now.vn/ho-chi-minh/com-trua-bento-now-station-ton-that-tung/', 25617,
+                           ':bento:'),
+        'test_phuclong': Merchant('https://www.now.vn/ho-chi-minh/phuc-long-coffee-tea-house-van-hanh-mall/', 31373,
+                                  ':starbucks:'),
+        'moc_vi': Merchant('https://www.now.vn/ho-chi-minh/moc-vi-quan-com-tren-dia-nong/', 18722, ':rice:'),
+        'ut_huong': Merchant('https://www.now.vn/ho-chi-minh/ut-huong/', 94, ':hatching_chick:'),
     }
     merchant = None
     teamx_id = None
@@ -32,13 +41,17 @@ class Env:
 
 def set_up_env(env):
     teamx_id = {
-        'test': 'CBUB3P4LU',
-        'prd': 'GAJ042SJ0',  # vnrnd-teamx
+        'test': '#dattestchannel',
+        'prd': '#vnrnd-teamx',  # vnrnd-teamx
     }
+    # teamx_id = {
+    #     'test': 'CBUB3P4LU',
+    #     'prd': 'GAJ042SJ0',  # vnrnd-teamx
+    # }
 
     merchant = {
         'test': Env.MERCHANTS['test_phuclong'],
-        'prd': Env.MERCHANTS['bento'],
+        'prd': Env.MERCHANTS['bento2'],
     }
     Env.teamx_id = teamx_id[env]
     Env.merchant = merchant[env]
@@ -78,6 +91,20 @@ class CartItem:
         )
 
 
+class BillItem:
+    def __init__(self, username, dish, price):
+        self.username = username
+        self.dish = dish
+        self.price = price
+
+    def __unicode__(self):
+        return u':coin: *{username}* - `{price}`\n{dish}'.format(
+            username=self.username,
+            dish='\n'.join([u'- {}'.format(d) for d in self.dish.split('\n')]),
+            price=self.price,
+        )
+
+
 class MySlackClient:
     API_TOKEN = config.SLACK_TEST_TOKEN
     OWNER_USER_ID = config.OWNER_USER_ID
@@ -90,10 +117,36 @@ class MySlackClient:
         return self.client.api_call(
             'chat.postMessage',
             channel=to,
+            link_names=1,
             username="Lunch Order Bot",
             icon_url="http://bit.ly/2zZ5Kp7",
+            icon_emoji=':ht-full:',
             text=content,
         )
+
+    def send_reply(self, channel, ts, content):
+        return self.client.api_call(
+            'chat.postMessage',
+            channel=channel,
+            link_names=1,
+            thread_ts=ts,
+            username="Lunch Order Bot",
+            icon_url="http://bit.ly/2zZ5Kp7",
+            icon_emoji=':ht-full:',
+            text=content,
+        )
+
+    def send_file(self, to, filepath, filename="untitled"):
+        with open(filepath) as file_content:
+            return self.client.api_call(
+                'files.upload',
+                channels=to,
+                username="Lunch Order Bot",
+                icon_url="http://bit.ly/2zZ5Kp7",
+                icon_emoji=':ht-full:',
+                title=filename,
+                file=file_content,
+            )
 
     def send_error(self, exception):
         return self.send_message(self.OWNER_USER_ID, """
@@ -107,6 +160,12 @@ class MySlackClient:
 
     def send_notify(self, content):
         return self.send_message(self.TEAMX_ID, content)
+
+    def send_reply_notify(self, thread_ts, content):
+        return self.send_reply(self.TEAMX_ID, thread_ts, content)
+
+    def send_file_notify(self, filepath, filename='untitled'):
+        return self.send_file(self.TEAMX_ID, filepath, filename)
 
 
 class NowClient:
@@ -274,8 +333,9 @@ def get_next_weekday(check_date):
 def remind_lunch_order_job(last_remind=False):
     sc = MySlackClient()
 
-    now_client = NowClient.get_client()
-    order_obj = now_client.get_order()
+    now_automation = NowAutomation(True, Env.merchant.uri)
+    now_automation.do_login()
+    order_url = now_automation.get_order_link()
 
     today = date.today()
 
@@ -286,7 +346,7 @@ Hi guys :robot_face: :here1::here2:
 {icon} {order_link}
     """.format(
         order_date=today.strftime("%b %d"),
-        order_link=order_obj.url(),
+        order_link=order_url,
         last_remind_option="Last chance." if last_remind else "",
         icon=Env.merchant.ic
     )
@@ -297,8 +357,9 @@ Hi guys :robot_face: :here1::here2:
 def announce_next_lunch_order_job():
     sc = MySlackClient()
 
-    now_client = NowClient.get_client()
-    order_obj = now_client.get_order()
+    now_automation = NowAutomation(True, Env.merchant.uri)
+    now_automation.do_login()
+    order_url = now_automation.get_order_link()
 
     today = date.today()
     next_order_date = get_next_weekday(today)
@@ -313,13 +374,14 @@ Check your lunch payment here:
 :moneybag: http://bit.ly/2LvoMrB
 """.format(
         order_date=next_order_date.strftime("%b %d"),
-        order_link=order_obj.url(),
+        order_link=order_url,
         icon=Env.merchant.ic
     )
 
     sc.send_notify(message)
 
 
+# deprecated since Now updated
 def notify_current_cart_job():
     sc = MySlackClient()
 
@@ -338,10 +400,78 @@ def notify_current_cart_job():
     sc.send_notify(u"""
 Please order if you haven't, i'll wait for 5 more mins
 :blank:
-:blank::blank::blank:{} Current Lunch Cart  <!here>
+:blank::blank::blank:{} Current Lunch Cart  @here
 :blank:
 {}
 """.format(Env.merchant.ic, "\n\n".join(messages) if messages else u"`empty_cart`"))
+
+
+# bad version (send screenshot)
+def notify_current_cart_job_v2():
+    sc = MySlackClient()
+    screenshot_path = '/tmp/od.png'
+
+    now_automation = NowAutomation(False, Env.merchant.uri)
+    now_automation.do_login()
+    now_automation.save_screenshot_of_detail_order(screenshot_path)
+
+    sc.send_notify(u"""
+Please order if you haven't, i'll wait for 5 more mins
+:blank:
+:blank::blank::blank:{} Current Lunch Cart  @here
+:blank:
+""".format(Env.merchant.ic))
+    sc.send_file_notify(screenshot_path)
+
+
+def notify_current_cart_job_v3():
+    sc = MySlackClient()
+
+    now_automation = NowAutomation(True, Env.merchant.uri)
+    now_automation.do_login()
+    cart_items_text = now_automation.get_card_item_list_text()
+
+    cart_items_text = beautify_cart_items_text(cart_items_text)
+
+    resp = sc.send_notify(u"""
+Please order if you haven’t, i’ll wait for `5 more minutes`
+ :conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot:
+
+:blank:
+:blank::blank::blank:{} Current Lunch Cart  @here
+:blank:
+{}
+""".format(Env.merchant.ic, cart_items_text))
+
+    # send notify to special people
+    time.sleep(15)
+    sc.send_reply_notify(resp['ts'], """
+:warning: @thanhhung.le @quocvinh.nguyen
+
+_Ask Dat if you want to have this "special" reminder_
+""")
+
+
+def notify_today_bill():
+    sc = MySlackClient()
+
+    now_automation = NowAutomation(True, Env.merchant.uri)
+    now_automation.do_login()
+    bill_item_as_dicts = now_automation.get_last_bill()
+
+    bill_items = [BillItem(item['username'], item['dish'], item['price']) for item in bill_item_as_dicts]
+
+    sc.send_notify(u"""
+This is for visibility, no need to pay now
+*I would prefer weekly/monthly paid* :pray:
+:blank:
+:blank::blank::blank::money_mouth_face: {} Bill :money_mouth_face:
+:blank:
+{}
+""".format(
+        date.today(),
+        u"\n\n".join([unicode(item) for item in bill_items]),
+    ))
 
 
 def hello_world():
@@ -358,6 +488,8 @@ if __name__ == '__main__':
                                                          'announce_next_lunch_order_job',
                                                          'remind_lunch_order_job',
                                                          'notify_current_cart_job',
+                                                         'notify_current_cart_job_v3',
+                                                         'notify_today_bill',
                                                          ))
     args = parser.parse_args()
 
@@ -365,9 +497,10 @@ if __name__ == '__main__':
 
     slack_client = MySlackClient()
     try:
-        run_job_at_time(11, 0, remind_lunch_order_job, last_remind=True)
-        run_job_at_time(11, 15, notify_current_cart_job)
-        run_job_at_time(13, 50, announce_next_lunch_order_job)
+        run_job_at_time(10, 40, remind_lunch_order_job, last_remind=True)
+        run_job_at_time(10, 50, notify_current_cart_job_v2)
+        run_job_at_time(13, 45, announce_next_lunch_order_job)
+        run_job_at_time(13, 50, notify_today_bill)
 
         if args.func:
             func = args.func

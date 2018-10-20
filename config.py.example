@@ -2,3 +2,12 @@ EMAIL = 'john.doe@gmail.com' # Your email (username) to login Foody
 ENCODED_PASSWORD = 'yourpwdasbase64sootherpeoplecantjustlookatit'  # Your based64 encoded password
 OWNER_USER_ID = 'SLACKID'  # Your Slack User ID
 SLACK_TEST_TOKEN = 'TOKEN'  # Get your at https://api.slack.com/custom-integrations/legacy-tokens#legacy-info
+
+EXCLUDE_PERIODS = [
+    ('2018-09-11', '2018-09-14'),
+]
+EXCLUDE_DATES = [
+    '2018-09-18',
+    '2018-09-27',
+    '2018-10-12',
+]

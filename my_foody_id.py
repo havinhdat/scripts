@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 
 import requests
 
+# deprecated
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--email', default='')
