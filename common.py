@@ -56,7 +56,7 @@ class CartItem:
 
 def beautify_cart_items_text(text):
     # remove price tag
-    text = re.sub(u'([0-9]+\,0+ đ)', '', text)
+    text = re.sub(u'([0-9]+\,0+đ)', '', text)
 
     this_line_is_username = True
     this_line_is_num_of_dishes = False

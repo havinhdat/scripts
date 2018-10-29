@@ -444,9 +444,9 @@ Please order if you haven’t, i’ll wait for `5 more minutes`
 """.format(Env.merchant.ic, cart_items_text))
 
     # send notify to special people
-    time.sleep(15)
+    time.sleep(30)
     sc.send_reply_notify(resp['ts'], """
-:warning: @thanhhung.le @quocvinh.nguyen
+:warning: @quocvinh.nguyen
 
 _Ask Dat if you want to have this "special" reminder_
 """)
@@ -462,7 +462,7 @@ def notify_today_bill():
     bill_items = [BillItem(item['username'], item['dish'], item['price']) for item in bill_item_as_dicts]
 
     sc.send_notify(u"""
-This is for visibility, no need to pay now
+This is for visibility and audit purpose, no need to pay now
 *I would prefer weekly/monthly paid* :pray:
 :blank:
 :blank::blank::blank::money_mouth_face: {} Bill :money_mouth_face:
@@ -497,10 +497,10 @@ if __name__ == '__main__':
 
     slack_client = MySlackClient()
     try:
-        run_job_at_time(10, 40, remind_lunch_order_job, last_remind=True)
-        run_job_at_time(10, 50, notify_current_cart_job_v2)
+        run_job_at_time(10, 20, remind_lunch_order_job, last_remind=True)
+        run_job_at_time(10, 50, notify_current_cart_job_v3)
         run_job_at_time(13, 45, announce_next_lunch_order_job)
-        run_job_at_time(13, 50, notify_today_bill)
+        # run_job_at_time(13, 50, notify_today_bill)
 
         if args.func:
             func = args.func
