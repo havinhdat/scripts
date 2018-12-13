@@ -3,7 +3,7 @@ import time
 import constants
 import config
 
-from common import get_chrome_browser, wait_browser_load_by_selector, wait_loader_disappeared
+from common import get_chrome_browser, wait_browser_load_by_selector, wait_loader_disappeared, beautify_cart_items_text
 
 
 class NowAutomation:
@@ -12,8 +12,8 @@ class NowAutomation:
             merchant_url = 'https://www.now.vn/ho-chi-minh/com-trua-bento-now-station-ton-that-tung/'
 
         self.browser = get_chrome_browser(headless)
-        self.wait_timeout = 20
-        self.delay_between_action = 5
+        self.wait_timeout = 40
+        self.delay_between_action = 20
 
         self.email = config.EMAIL
         self.password = base64.decodestring(config.ENCODED_PASSWORD)
@@ -58,7 +58,7 @@ class NowAutomation:
         group_order_link_text = self.browser.find_element_by_css_selector(constants.NOW_GROUP_ORDER_LINK_SELECTOR)
 
         group_order_btn.click()
-        time.sleep(0.5)
+        time.sleep(2)
         return group_order_link_text.get_attribute('value')
 
     def save_screenshot_of_detail_order(self, filepath):
@@ -75,9 +75,19 @@ class NowAutomation:
 
         self.browser.find_element_by_css_selector(constants.NOW_GROUP_ORDER_DETAIL_MODAL_SELECTOR).screenshot(filepath)
 
-    def get_card_item_list_text(self):
-        self.get(self.url_merchant)
+    def save_screenshot_of_incoming_item(self, filepath):
+        self.get(self.url_history)
+        wait_browser_load_by_selector(self.browser, self.wait_timeout, constants.NOW_HISTORY_INCOMING_ITEM)
+
+        self.browser.find_elements_by_css_selector(constants.NOW_HISTORY_INCOMING_ITEM).screenshot(filepath)
+
+    def get_card_item_list_text(self, url=None):
+        if url is None:
+            url = self.url_merchant
+
+        self.get(url)
         wait_browser_load_by_selector(self.browser, self.wait_timeout, constants.NOW_GROUP_ORDER_BTN_SELECTOR)
+        time.sleep(self.delay_between_action)
 
         return self.browser.find_element_by_class_name('now-order-card-group').text
 
@@ -126,10 +136,37 @@ class NowAutomation:
         self.browser.close()
 
 
-if __name__ == '__main__':
+def _test_lunch_bill():
     now = NowAutomation(headless=False)
-
     now.do_login()
     l = now.get_last_bill()
     for e in l:
         print(u'name: {}, dish: {}, price: {}'.format(e['username'], e['dish'], e['price']))
+
+
+def _test_lunch_cart():
+    now = NowAutomation(headless=False)
+    now.do_login()
+    cart_list = now.get_card_item_list_text()
+    cart_list = beautify_cart_items_text(cart_list)
+
+    print(cart_list)
+
+
+def _test_get_order_link():
+    now = NowAutomation(headless=False)
+    now.do_login()
+
+    url = now.get_order_link()
+    print(url)
+
+
+def _test_save_screenshot_of_incoming_item():
+    now = NowAutomation(headless=False)
+    now.do_login()
+
+    now.save_screenshot_of_incoming_item('/tmp/ii_test.png')
+
+
+if __name__ == '__main__':
+    _test_save_screenshot_of_incoming_item()

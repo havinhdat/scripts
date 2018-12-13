@@ -14,3 +14,4 @@ NOW_HISTORY_FROM_DATE_TODAY_VALUE_SELECTOR = 'body > div.flatpickr-calendar.anim
 NOW_HISTORY_TO_DATE_INPUT_SELECTOR = '#app > div > div.block-section > div > div.history-table-container > div.filter-table > div:nth-child(3) > div > input'
 NOW_HISTORY_SEARCH_BTN_SELECTOR = '#app > div > div.block-section > div > div.history-table-container > div.filter-table > div:nth-child(4) > button'
 NOW_HISTORY_FIRST_ORDER_DETAIL_LINK_SELECTOR = '#app > div > div.block-section > div > div.history-table-container > div.history-table > div:nth-child(2) > div.history-table-cell.history-table-col8 > a:nth-child(1)'
+NOW_HISTORY_INCOMING_ITEM = '#app > div > div.block-section > div > div.now-incoming.incoming-full > div > div > div > div > div > div > div'

@@ -23,14 +23,14 @@ class Merchant:
 
 class Env:
     MERCHANTS = {
-        'bento': Merchant('https://www.now.vn/ho-chi-minh/com-trua-bento-nguyen-huu-tho-now-station-2/', 22220,
-                          ':bento:'),
-        'bento2': Merchant('https://www.now.vn/ho-chi-minh/com-trua-bento-now-station-ton-that-tung/', 25617,
-                           ':bento:'),
-        'test_phuclong': Merchant('https://www.now.vn/ho-chi-minh/phuc-long-coffee-tea-house-van-hanh-mall/', 31373,
-                                  ':starbucks:'),
-        'moc_vi': Merchant('https://www.now.vn/ho-chi-minh/moc-vi-quan-com-tren-dia-nong/', 18722, ':rice:'),
-        'ut_huong': Merchant('https://www.now.vn/ho-chi-minh/ut-huong/', 94, ':hatching_chick:'),
+        'bento': Merchant('https://www.now.vn/ho-chi-minh/com-trua-bento-nguyen-huu-tho-now-station-2/', 22220, ':bento:'),
+        'bento2': Merchant('https://www.now.vn/ho-chi-minh/com-trua-bento-now-station-ton-that-tung/', 25617, ':bento:'),
+        'test_phuclong': Merchant('https://www.now.vn/ho-chi-minh/phuc-long-coffee-tea-house-van-hanh-mall/', 31373, ':starbucks:'),
+        'ga_da_gion': Merchant('https://www.now.vn/ho-chi-minh/com-ga-da-gion-tran-quang-khai/', 9371, ':hatching_chick:'),
+        'bento3': Merchant('https://www.now.vn/ho-chi-minh/quan-an-maika-nguyen-trai/', 865, ':bento:'),
+
+        # 'rubik': Merchant('https://www.now.vn/ho-chi-minh/long-kitchen-com-bento-ga-quay-mi-xa-xiu-now-station/', xxx, ':bento:'),
+        # 'bento3': Merchant('https://www.now.vn/ho-chi-minh/quan-com-bento-nguyen-tri-phuong/', xxx, ':bento:'),
     }
     merchant = None
     teamx_id = None
@@ -51,7 +51,7 @@ def set_up_env(env):
 
     merchant = {
         'test': Env.MERCHANTS['test_phuclong'],
-        'prd': Env.MERCHANTS['bento2'],
+        'prd': Env.MERCHANTS['bento3'],
     }
     Env.teamx_id = teamx_id[env]
     Env.merchant = merchant[env]
@@ -400,7 +400,7 @@ def notify_current_cart_job():
     sc.send_notify(u"""
 Please order if you haven't, i'll wait for 5 more mins
 :blank:
-:blank::blank::blank:{} Current Lunch Cart  @here
+:blank::blank::blank:{} Current Lunch Cart  @lunch-x
 :blank:
 {}
 """.format(Env.merchant.ic, "\n\n".join(messages) if messages else u"`empty_cart`"))
@@ -418,7 +418,7 @@ def notify_current_cart_job_v2():
     sc.send_notify(u"""
 Please order if you haven't, i'll wait for 5 more mins
 :blank:
-:blank::blank::blank:{} Current Lunch Cart  @here
+:blank::blank::blank:{} Current Lunch Cart  @lunch-x
 :blank:
 """.format(Env.merchant.ic))
     sc.send_file_notify(screenshot_path)
@@ -429,7 +429,8 @@ def notify_current_cart_job_v3():
 
     now_automation = NowAutomation(True, Env.merchant.uri)
     now_automation.do_login()
-    cart_items_text = now_automation.get_card_item_list_text()
+    url = now_automation.get_order_link()
+    cart_items_text = now_automation.get_card_item_list_text(url)
 
     cart_items_text = beautify_cart_items_text(cart_items_text)
 
@@ -438,7 +439,7 @@ Please order if you haven’t, i’ll wait for `5 more minutes`
  :conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot::conga_parrot:
 
 :blank:
-:blank::blank::blank:{} Current Lunch Cart  @here
+:blank::blank::blank:{} Current Lunch Cart  @lunch-x
 :blank:
 {}
 """.format(Env.merchant.ic, cart_items_text))
@@ -462,6 +463,9 @@ def notify_today_bill():
     bill_items = [BillItem(item['username'], item['dish'], item['price']) for item in bill_item_as_dicts]
 
     sc.send_notify(u"""
+:blank:
+:blank::blank::blank:*ĐÃ CÓ CƠM*
+:blank:
 This is for visibility and audit purpose, no need to pay now
 *I would prefer weekly/monthly paid* :pray:
 :blank:
@@ -472,6 +476,18 @@ This is for visibility and audit purpose, no need to pay now
         date.today(),
         u"\n\n".join([unicode(item) for item in bill_items]),
     ))
+
+
+def notify_incoming_item():
+    sc = MySlackClient()
+
+    now_automation = NowAutomation(True, Env.merchant.uri)
+    now_automation.do_login()
+
+    filepath = '/tmp/ii.png'
+    now_automation.save_screenshot_of_incoming_item(filepath)
+
+    sc.send_file_notify(filepath)
 
 
 def hello_world():
@@ -490,6 +506,7 @@ if __name__ == '__main__':
                                                          'notify_current_cart_job',
                                                          'notify_current_cart_job_v3',
                                                          'notify_today_bill',
+                                                         'notify_incoming_item',
                                                          ))
     args = parser.parse_args()
 
@@ -497,8 +514,8 @@ if __name__ == '__main__':
 
     slack_client = MySlackClient()
     try:
-        run_job_at_time(10, 20, remind_lunch_order_job, last_remind=True)
-        run_job_at_time(10, 50, notify_current_cart_job_v3)
+        run_job_at_time(10, 15, remind_lunch_order_job, last_remind=True)
+        run_job_at_time(10, 30, notify_current_cart_job_v3)
         run_job_at_time(13, 45, announce_next_lunch_order_job)
         # run_job_at_time(13, 50, notify_today_bill)
 
